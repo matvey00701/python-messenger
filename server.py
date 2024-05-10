@@ -1,31 +1,17 @@
+# In dev!
+
 import time
 from datetime import datetime
-
-from flask import Flask, request, abort
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import firestore
+from flask import Flask, request, abort, jsonify
 
 app = Flask(__name__)
-db = [
-    {
-        'name': 'Jack',
-        'text': 'Hello',
-        'time': time.time()
-    },
-    {
-        'name': 'Mary',
-        'text': 'Jack',
-        'time': time.time()
-    },
-]
+cred = credentials.Certificate('messenger-for-uni-06332e181228.json')
 
-def userCount():
-    # функция создает список уникальных юзеров и возвращает его длину
-    users = []
-    for mes in db:
-        username = mes['name']
-        if username not in users:
-            users.append(username)
-    # print(users)
-    return len(users)
+fs_app = firebase_admin.initialize_app(cred)
+db = firestore.client()
 
 
 @app.route("/")
@@ -33,60 +19,34 @@ def hello():
     return "Hello, World!"
 
 
-@app.route("/status")
-def status():
-    dt = datetime.now()
-    userCount()
-    return {
-        'status': True,
-        'name': 'PyMessenger',
-        'time3': time.asctime(),
-        'total messages': len(db),
-        'users': userCount()
-    }
-
-
 @app.route("/send", methods=['POST'])
 def send():
-    data = request.json
-    if not isinstance(data, dict):
+    data = request.get_json()
+
+    content = data.get('content')
+    convID = data.get('conversation')
+    sender_name = data.get('sender')
+    timestamp = firestore.SERVER_TIMESTAMP
+
+    if not content or not convID or not sender_name:
         return abort(400)
-    if 'name' not in data or 'text' not in data:
-        return abort(400)
-
-    name = data['name']
-    text = data['text']
-
-    if not isinstance(name, str) or not isinstance(text, str):
-        return abort(400)
-    if not 0 < len(name) <= 64:
-        return abort(400)
-    if not 0 < len(text) <= 10000:
-        return abort(400)
-
-    db.append({
-        'name': name,
-        'text': text,
-        'time': time.time()
-    })
-
-    return {}
-
-
-@app.route("/messages")
-def messages():
+    
+    # usr = db.collection('users').where('nickname', '==', str(sender_name)).get()
+    print(content + '; ' + convID + '; ' + sender_name)
+    
+    message_data = {
+        "content": content,
+        "conversation_id": convID,
+        "sender": str(sender_name),
+        "timestamp": timestamp
+    }
     try:
-        after = float(request.args['after'])
-    except:
-        return abort(400)
+        # Add message data to Firestore
+        db.collection("messages").add(message_data)
+        return jsonify({"success": True}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-    filtered_messages = []
-
-    for message in db:
-        if message['time'] > after:
-            filtered_messages.append(message)
-
-    return {'messages': filtered_messages[:50]}
 
 
 app.run()
