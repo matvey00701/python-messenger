@@ -1,112 +1,23 @@
-import requests
+from Reqs import Reqs
 from tkinter import *
 from tkinter import ttk, messagebox
 import threading
 
 # server_url = 'http://127.0.0.1:5000'
 
-# functions
-class Cli:
-
-    def __init__(self):
-
-        self.chat_list = []
-        self.lastSN = 0
-
-        self.status = {
-            'chat': '',
-            'sender': '',
-            'server_url': 'http://127.0.0.1:5000',
-            'ws_url': 'ws://127.0.0.1:5000'
-        }
-
-    def send_request(self, route: str, data: dict):
-        try:
-            response = requests.post(
-                self.status['server_url'] + route,
-                json=data
-            )
-            # print(response.json())
-            return response.json()
-        except:
-            messagebox.showerror('Error', f'Something went wrong... :/\nCode: {response.status_code}')
-
-    
-    def on_message(message):
-        # Handle received message
-        print("Received:", message)
-
-    def on_error(error):
-        print(error)
-
-
-    def is_user(self, name):
-        data = {'name': name}
-        return self.send_request('/is_user', data)['result']
-
-
-    def login(self, name):
-        if cli.is_user(name):
-                cli.status['sender'] = name
-                return True
-        else:
-            messagebox.showerror('Error', 'No such user.')
-            return False
-
-
-    def get_chats(self):
-        data = {'name': self.status['sender']}
-        return self.send_request('/get_chats', data)['result']
-
-
-    def emit_text(self, text, string):
-        text.configure(state=NORMAL)
-        text.insert('end', string)
-        text.configure(state=DISABLED)
-
-
-    def print_messages(self, text, messages: list):
-        for message in reversed(messages):
-            date = message['date']
-            message_string = '─'*40+'\n'
-            if message['sender'] == self.status['sender']:
-                message_string += f' You                 │ {str(date)}\n'
-            else:
-                message_string += f' {message['sender']:19} │ {str(date)}\n'
-            message_string += ' ' + message['content'] + '\n\n'
-
-            self.emit_text(text, message_string)
-        text.see("end")
-
-
-    def get_messages(self):
-        data = {'conversation': self.status['chat']}
-        return self.send_request('/get_msgs', data)['result']
-        
-
-    def send(self, message: str, textbox):
-        data = {
-            'content': message,
-            'conversation': self.status['chat'],
-            'sender': self.status['sender'],
-            'sn': self.lastSN + 1
-        }
-        _ = self.send_request('/send', data)['result']
-        self.print_messages(textbox, self.get_messages())
-
 
 if __name__ == '__main__':
-    cli = Cli()
+    reqs = Reqs()
 
     def status_window():
-            messagebox.showinfo("Status", f"Chat: {cli.status['chat']}\n\
-User: {cli.status['sender']}\n\
-URL: {cli.status['server_url']}")
+            messagebox.showinfo("Status", f"Chat: {reqs.status['chat']}\n\
+User: {reqs.status['sender']}\n\
+URL: {reqs.status['server_url']}")
 
 
     def connect_window():
         def set_addr():
-            cli.status['server_url'] = entry.get()
+            reqs.status['server_url'] = entry.get()
         cnw = Toplevel()
         cnw.title('Connect')
         # cnw.geometry('200x100')
@@ -120,10 +31,10 @@ URL: {cli.status['server_url']}")
 
     def login():
         def set_user():
-            if cli.login(entry.get()):
-                cli.get_chats()
+            if reqs.login(entry.get()):
+                reqs.get_chats()
                 chat_name_box.config(state="normal")
-                chat_name_box['values'] = cli.chat_list
+                chat_name_box['values'] = reqs.chat_list
                 chat_name_box.config(state="readonly")
                 lgw.destroy()
 
@@ -141,14 +52,14 @@ URL: {cli.status['server_url']}")
     def send():
         txt = message_entry.get("1.0",END)
         message_entry.delete('1.0', END)
-        cli.send(txt, chat_field)
+        reqs.send(txt, chat_field)
 
     def open_chat():
-        cli.status['chat'] = chat_name_box.get()
+        reqs.status['chat'] = chat_name_box.get()
         chat_field.config(state="normal")
         chat_field.delete('1.0', END)
         chat_field.config(state="disabled")
-        cli.print_messages(chat_field, cli.get_messages())
+        reqs.print_messages(chat_field, reqs.get_messages())
 
 
     root = Tk()
@@ -168,7 +79,7 @@ URL: {cli.status['server_url']}")
     open_chat_frame.columnconfigure(index=0, weight=3)
     open_chat_frame.columnconfigure(index=1, weight=1)
 
-    chat_name_box = ttk.Combobox(open_chat_frame, values=cli.chat_list)
+    chat_name_box = ttk.Combobox(open_chat_frame, values=reqs.chat_list)
     chat_name_box.grid(row=0, column=0, sticky='ew')
     Button(open_chat_frame, text='Open', command=open_chat).grid(row=0, column=1)
     chat_name_box.config(state="readonly")
