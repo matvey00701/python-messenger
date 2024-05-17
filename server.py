@@ -12,6 +12,33 @@ fs_app = firebase_admin.initialize_app(cred)
 db = firestore.client()
 
 
+connected_users = {}
+
+# @socketio.on('connect')
+# def handle_connect():
+#     user_id = request.args.get('user_id')  # Assuming user ID is passed as a query parameter
+#     connected_users[user_id] = request.sid
+#     print(f"User {user_id} connected.")
+
+# @socketio.on('disconnect')
+# def handle_disconnect():
+#     user_id = None
+#     for uid, sid in connected_users.items():
+#         if sid == request.sid:
+#             user_id = uid
+#             del connected_users[uid]
+#             break
+#     if user_id:
+#         print(f"User {user_id} disconnected.")
+        
+
+# def send_message_to_user(user_id, message):
+#     if user_id in connected_users:
+#         socketio.emit('message', message, room=connected_users[user_id])
+#     else:
+#         print(f"User {user_id} is not connected.")
+
+
 @app.route("/")
 def hello():
     return "What the hella you doin' here??"
@@ -45,14 +72,12 @@ def jsonify_messages(msg_lst: list):
         msg_content = msg.get('content')
         msg_sender = msg.get('sender')
         msg_date = msg.get('timestamp').strftime("%d.%m.%Y %H:%M")
-        msg_sn = msg.get('sn')
 
         lst.append(
             {
                 'content': msg_content,
                 'sender': msg_sender,
                 'date': msg_date,
-                'sn': msg_sn
             }
         )
     return jsonify({'result': lst})
@@ -64,7 +89,7 @@ def get_msgs():
     conv = request.get_json()['conversation']
     msgs = db.collection('messages')\
         .where('conversation_id', '==', str(conv))\
-        .order_by('sn', direction=firestore.Query.DESCENDING)\
+        .order_by('timestamp', direction=firestore.Query.DESCENDING)\
         .limit(50)\
         .get()
 
@@ -84,7 +109,6 @@ def send():
     content = data.get('content')
     convID = data.get('conversation')
     sender_name = data.get('sender')
-    sn = data.get('sn')
     timestamp = firestore.SERVER_TIMESTAMP
 
     if not content or not convID or not sender_name:
@@ -93,7 +117,6 @@ def send():
     message_data = {
         "content": content,
         "conversation_id": convID,
-        "sn": sn,
         "sender": str(sender_name),
         "timestamp": timestamp
     }
@@ -101,7 +124,7 @@ def send():
     members = db.collection('conversations').document(convID).get().to_dict().get('members')
     for member in members:
         if member != sender_name:
-            # send_update(member, message_data)
+            # send_message_to_user(member, 'hi :)')
             pass
         else:
             pass

@@ -1,19 +1,22 @@
 import requests
 from tkinter import messagebox
 from tkinter import Text
+# from websocket_stuff import WS
 
 class Reqs:
 
     def __init__(self):
-
-        self.chat_list = []
-        self.lastSN = 0
 
         self.status = {
             'chat': '',
             'sender': '',
             'server_url': 'http://127.0.0.1:5000',
         }
+
+        self.chat_list = []
+        self.lastSN = 0
+        # self.ws = WS(self.status['server_url'])
+
 
     def send_request(self, route: str, data: dict):
         try:
@@ -42,6 +45,7 @@ class Reqs:
     def login(self, name) -> bool:
         if self.is_user(name):
                 self.status['sender'] = name
+                # self.ws.connect_to_server(self.status['sender'])
                 return True
         else:
             messagebox.showerror('Error', 'No such user.')
@@ -85,5 +89,5 @@ class Reqs:
             'sender': self.status['sender'],
             'sn': self.lastSN + 1
         }
-        _ = self.send_request('/send', data)['result']
+        _ = self.send_request('/send', data)
         self.print_messages(textbox, self.get_messages())

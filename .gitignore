@@ -1,2 +1,4 @@
 messenger-for-uni-06332e181228.json
-__pycache__\Reqs.cpython-312.pyc
+__pycache__/
+python-messenger.code-workspace
+websocket_stuff.py
