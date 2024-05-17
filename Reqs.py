@@ -19,42 +19,63 @@ class Reqs:
 
 
     def send_request(self, route: str, data: dict):
-        try:
-            response = requests.post(
-                self.status['server_url'] + route,
-                json=data
-            )
+        response = requests.post(
+            self.status['server_url'] + route,
+            json=data
+        )
+        if response.json()['result']:
             return response.json()
-        except:
-            messagebox.showerror('Error', f'Something went wrong... :/\nCode: {response.status_code}')
+        messagebox.showerror('Error', f'{response.json()['message']}\nCode: {response.status_code}')
 
     
-    def on_message(message):
-        # Handle received message
-        print("Received:", message)
-
-    def on_error(error):
-        print(error)
-
-
-    def is_user(self, name):
-        data = {'name': name}
-        return self.send_request('/is_user', data)['result']
-
-
-    def login(self, name) -> bool:
-        if self.is_user(name):
-                self.status['sender'] = name
-                # self.ws.connect_to_server(self.status['sender'])
-                return True
+    def find_user(self, username: str) -> bool:
+        data = {'username': username}
+        response = requests.get(
+            self.status['server_url'] + '/find_user',
+            params=data
+        )
+        if response.json()['result']:
+            return True
         else:
-            messagebox.showerror('Error', 'No such user.')
             return False
+        
+        
+    def create_convo(self, username: str) -> bool:
+        data = {
+            'user1': self.status['sender'],
+            'user2': username
+        }
+
+        if self.send_request('/create_convo', data):
+            return True
+        else:
+            return False
+        
+    
+
+    def register(self, username: str, password: str) -> bool:
+        data = {
+            'username': username,
+            'password': password
+        }
+        if self.send_request('/register', data)['result']:
+            self.status['sender'] = username
+            return True
+
+
+    def login(self, username: str, password: str) -> bool:
+        data = {
+            'username': username,
+            'password': password
+        }
+        if self.send_request('/login', data):
+            self.status['sender'] = username
+            return True
 
 
     def get_chats(self):
         data = {'name': self.status['sender']}
-        self.chat_list = self.send_request('/get_chats', data)['result']
+        self.chat_list = self.send_request('/get_chats', data)['chats']
 
 
     def emit_text(self, text: Text, string: str):
@@ -79,7 +100,7 @@ class Reqs:
 
     def get_messages(self):
         data = {'conversation': self.status['chat']}
-        return self.send_request('/get_msgs', data)['result']
+        return self.send_request('/get_msgs', data)['messages']
         
 
     def send(self, message: str, textbox):

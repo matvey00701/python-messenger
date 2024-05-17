@@ -4,6 +4,7 @@ import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import firestore
 from flask import Flask, request, abort, jsonify
+import bcrypt
 
 app = Flask(__name__)
 cred = credentials.Certificate('messenger-for-uni-06332e181228.json')
@@ -14,29 +15,81 @@ db = firestore.client()
 
 connected_users = {}
 
-# @socketio.on('connect')
-# def handle_connect():
-#     user_id = request.args.get('user_id')  # Assuming user ID is passed as a query parameter
-#     connected_users[user_id] = request.sid
-#     print(f"User {user_id} connected.")
 
-# @socketio.on('disconnect')
-# def handle_disconnect():
-#     user_id = None
-#     for uid, sid in connected_users.items():
-#         if sid == request.sid:
-#             user_id = uid
-#             del connected_users[uid]
-#             break
-#     if user_id:
-#         print(f"User {user_id} disconnected.")
-        
+@app.route('/create_convo', methods=['POST'])
+def create_convo():
+    data = request.json
+    usr1 = data['user1']
+    usr2 = data['user2']
 
-# def send_message_to_user(user_id, message):
-#     if user_id in connected_users:
-#         socketio.emit('message', message, room=connected_users[user_id])
-#     else:
-#         print(f"User {user_id} is not connected.")
+    convo_name = f'{usr1}-{usr2}'
+    A = db.collection('conversations').document(convo_name).get()
+    if A.exists:
+        return jsonify({'result': False, 'message': 'Chat already exists.', 'chat_name': A}), 418
+    B = db.collection('conversations').document(f'{usr2}-{usr1}').get()
+    if B.exists:
+        return jsonify({'result': False, 'message': 'Chat already exists.', 'chat_name': B}), 418
+
+    db.collection('conversations').add(document_id=convo_name, document_data={'members': [usr1, usr2]})
+    return jsonify({'result': True, 'chat_name': convo_name}), 200
+
+@app.route('/register', methods=['POST'])
+def register():
+    data = request.json
+    username = data['username']
+    password = data['password'].encode('utf-8')
+
+    user = db.collection('users').document(username).get()
+
+    if not user.exists:
+        # Hash the password with bcrypt
+        salt = bcrypt.gensalt()
+        hashed_password = bcrypt.hashpw(password, salt)
+
+        db.collection('users').add(document_id=username, document_data={
+            'display_name': username,
+            'password': hashed_password.decode('utf-8')
+        })
+
+        return jsonify({'result': True}), 201
+    return jsonify({'result': False, 'message': 'User already exists.'}), 418
+
+
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.json
+
+    username = data['username']
+    password = data['password'].encode('utf-8')
+
+    # Retrieve the user from Firestore
+    user = db.collection('users').document(username).get()
+
+    if not user.exists:
+        return jsonify({'result': False, 'message': 'Invalid username'}), 401
+
+    stored_hashed_password = user.get('password').encode('utf-8')
+
+    # Verify the password
+    if bcrypt.checkpw(password, stored_hashed_password):
+        return jsonify({'result': True, 'message': 'Login successful'}), 200
+    else:
+        return jsonify({'result': False, 'message': 'Invalid username or password'}), 401
+
+
+@app.route("/find_user", methods=['GET'])
+def find_user():
+    username = request.args.get('username')
+    if not username:
+        return jsonify({'result': False, 'message': 'Username is required'}), 400
+    
+    user = db.collection('users').document(username).get()
+
+    if not user.exists:
+        return jsonify({'result': False, 'message': 'User was not found :((('}), 404
+    
+    return jsonify({'result': True}), 200
+    
 
 
 @app.route("/")
@@ -63,7 +116,7 @@ def get_chats():
     for i, chat in enumerate(chats):
         chats[i] = chat.id
 
-    return jsonify({'result': chats})
+    return jsonify({'result': True, 'chats': chats})
 
 
 def jsonify_messages(msg_lst: list):
@@ -80,7 +133,7 @@ def jsonify_messages(msg_lst: list):
                 'date': msg_date,
             }
         )
-    return jsonify({'result': lst})
+    return jsonify({'result': True, 'messages': lst})
     
 
 
@@ -132,9 +185,9 @@ def send():
     try:
         # Add message data to Firestore
         db.collection("messages").add(message_data)
-        return jsonify({"success": True}), 200
+        return jsonify({"result": True}), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"result": False}), 500
 
 
 
