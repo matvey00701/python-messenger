@@ -4,16 +4,52 @@ import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import firestore
 from flask import Flask, request, abort, jsonify
+from flask_socketio import SocketIO, join_room, emit
 import bcrypt
+import threading
+
 
 app = Flask(__name__)
+sio = SocketIO(app, async_mode='gevent')
 cred = credentials.Certificate('messenger-for-uni-06332e181228.json')
 
 fs_app = firebase_admin.initialize_app(cred)
 db = firestore.client()
 
 
-connected_users = {}
+clients = {}
+
+
+def send_to_client(client, data):
+    client_sid = clients.get(client)
+    if client_sid:
+        sio.emit('message', data, room=client_sid)
+        print(f'message sent to {client}')
+
+
+@sio.on('connect')
+def on_connect():
+    client_id = request.args.get('client_id')
+    if client_id:
+        clients[client_id] = request.sid
+        print(f'Client {client_id} connected with SID {request.sid}')
+
+
+@sio.on('disconnect')
+def on_disconnect():
+    client_id = None
+    for cid, sid in clients.items():
+        if sid == request.sid:
+            client_id = cid
+            break
+    if client_id:
+        del clients[client_id]
+        print(f'Client {client_id} disconnected')
+
+
+@app.route('/clients', methods=['POST'])
+def snd_clients():
+    return jsonify(clients), 200
 
 
 @app.route('/create_convo', methods=['POST'])
@@ -25,13 +61,14 @@ def create_convo():
     convo_name = f'{usr1}-{usr2}'
     A = db.collection('conversations').document(convo_name).get()
     if A.exists:
-        return jsonify({'result': False, 'message': 'Chat already exists.', 'chat_name': A}), 418
+        return jsonify({'result': False, 'message': 'Chat already exists.'}), 418
     B = db.collection('conversations').document(f'{usr2}-{usr1}').get()
     if B.exists:
-        return jsonify({'result': False, 'message': 'Chat already exists.', 'chat_name': B}), 418
+        return jsonify({'result': False, 'message': 'Chat already exists.'}), 418
 
     db.collection('conversations').add(document_id=convo_name, document_data={'members': [usr1, usr2]})
     return jsonify({'result': True, 'chat_name': convo_name}), 200
+
 
 @app.route('/register', methods=['POST'])
 def register():
@@ -149,12 +186,6 @@ def get_msgs():
     return jsonify_messages(msgs)
 
 
-# def send_update(client_id, message_data):
-#     if client_id in client_connections:
-#         connection = client_connections[client_id]
-#         connection.send(message_data)
-
-
 @app.route("/send", methods=['POST'])
 def send():
     data = request.get_json()
@@ -174,21 +205,20 @@ def send():
         "timestamp": timestamp
     }
 
-    members = db.collection('conversations').document(convID).get().to_dict().get('members')
-    for member in members:
-        if member != sender_name:
-            # send_message_to_user(member, 'hi :)')
-            pass
-        else:
-            pass
-
     try:
         # Add message data to Firestore
         db.collection("messages").add(message_data)
-        return jsonify({"result": True}), 200
+        members = db.collection('conversations').document(convID).get().to_dict().get('members')
+        for member in members:
+            if member != sender_name:
+                if member in clients:
+                    send_to_client(member, data)
+            else:
+                pass
+        return jsonify({'result': True}), 200
     except Exception as e:
-        return jsonify({"result": False}), 500
+        print(e)
+        return jsonify({'result': False}), 500
 
 
-
-app.run()
+sio.run(app)

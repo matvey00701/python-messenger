@@ -1,10 +1,8 @@
 from reqs import Reqs
 from tkinter import *
-# import tkinter as tk
 from tkinter import ttk, messagebox
-# import threading
-
-# server_url = 'http://127.0.0.1:5000'
+import time
+import threading
 
 
 if __name__ == '__main__':
@@ -14,7 +12,12 @@ if __name__ == '__main__':
     def status_window():
             messagebox.showinfo("Status", f"Chat: {reqs.status['chat']}\nUser: {reqs.status['sender']}\nURL: {reqs.status['server_url']}")
 
-    
+    def update_chat():
+        while True:
+            reqs.get_messages()
+            reqs.print_messages(chat_field)
+            time.sleep(1)
+
     def register():
         def command():
             username = usr_entry.get()
@@ -73,19 +76,18 @@ if __name__ == '__main__':
         lgw.focus()
         lgw.resizable(0, 0)
 
-    
+
     def send():
         txt = message_entry.get("1.0",END)
         message_entry.delete('1.0', END)
-        reqs.send(txt, chat_field)
+        reqs.send(txt)
 
 
     def open_chat():
         reqs.status['chat'] = chat_name_box.get()
-        chat_field.config(state="normal")
-        chat_field.delete('1.0', END)
-        chat_field.config(state="disabled")
-        reqs.print_messages(chat_field, reqs.get_messages())
+        reqs.get_messages()
+        reqs.print_messages()
+
 
 # --------------------- Setting up UI ---------------------
 
@@ -131,6 +133,7 @@ if __name__ == '__main__':
 
     chat_field = Text(text_frame, width=40, state=DISABLED, wrap='word')
     chat_field.pack()
+    reqs.chat_field = chat_field
 
     text_frame.pack()
 
@@ -172,15 +175,6 @@ if __name__ == '__main__':
     usr_entry.pack(anchor='center', padx=5, pady=5, fill=X)
     inf_lbl.pack(anchor='center', pady=5)
     Button(find_frame, text='Message to', command=messageto, width=10).pack(anchor='center', pady=5)
-
-
-# --------------------- Log-in Tab ---------------------
-    # login_frame = ttk.LabelFrame(tab_login, borderwidth=1, relief=GROOVE, padding=[8, 10])
-    # Button(login_frame, text='Log-in',  command=login, width=10).pack(anchor=CENTER, pady=5)
-    # Label(login_frame, text='or').pack(anchor=CENTER)
-    # Button(login_frame, text='Sign-up',  command=register, width=10).pack(anchor=CENTER, pady=5)
-    # login_frame.pack(padx=5, pady=5, fill=BOTH)
-    # info_lbl = Label(tab_login, text='Logged in as: ').pack(anchor=W, padx=8+5, pady=10+5)
 
 
 # --------------------- Start App ---------------------

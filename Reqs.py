@@ -1,7 +1,7 @@
 import requests
-from tkinter import messagebox
-from tkinter import Text
-# from websocket_stuff import WS
+from tkinter import messagebox, Text
+import socketio
+import threading
 
 class Reqs:
 
@@ -14,8 +14,45 @@ class Reqs:
         }
 
         self.chat_list = []
-        self.lastSN = 0
-        # self.ws = WS(self.status['server_url'])
+        self.message_list = []
+        self.chat_field = None
+
+        self.sio = socketio.Client()
+
+        @self.sio.event
+        def connect():
+            print(f"Connected to server with SID: {self.sio.sid}")
+
+        @self.sio.event
+        def disconnect():
+            print("Disconnected from server")
+
+        @self.sio.on('message')
+        def on_message(data):
+            print('message!')
+            self.update(data)
+
+
+    def update(self, data: dict):
+        convo = data.get('conversation')
+        print(data)
+        if convo:
+            if convo == self.status['chat']:
+                self.get_messages()
+                self.print_messages()
+            else:
+                pass
+
+
+    def run_sw(self):
+        self.sio.connect(f'{self.status['server_url']}?client_id={self.status['sender']}', transports=['websocket']) # , query_string={'client_id': client_id})
+        self.sio.wait()
+
+    
+    def start_sw(self):
+        sw_thread = threading.Thread(target=self.run_sw)
+        sw_thread.daemon = True
+        sw_thread.start()
 
 
     def send_request(self, route: str, data: dict):
@@ -46,12 +83,11 @@ class Reqs:
             'user2': username
         }
 
-        if self.send_request('/create_convo', data):
+        if self.send_request('/create_convo', data)['result']:
             return True
         else:
             return False
         
-    
 
     def register(self, username: str, password: str) -> bool:
         data = {
@@ -60,6 +96,7 @@ class Reqs:
         }
         if self.send_request('/register', data)['result']:
             self.status['sender'] = username
+            self.start_sw()
             return True
 
 
@@ -68,8 +105,9 @@ class Reqs:
             'username': username,
             'password': password
         }
-        if self.send_request('/login', data):
+        if self.send_request('/login', data)['result']:
             self.status['sender'] = username
+            self.start_sw()
             return True
 
 
@@ -84,8 +122,11 @@ class Reqs:
         text.configure(state='disabled')
 
 
-    def print_messages(self, text, messages: list):
-        for message in reversed(messages):
+    def print_messages(self):
+        self.chat_field.config(state="normal")
+        self.chat_field.delete('1.0', 'end')
+        self.chat_field.config(state="disabled")
+        for message in reversed(self.message_list):
             date = message['date']
             message_string = '─'*40+'\n'
             if message['sender'] == self.status['sender']:
@@ -94,21 +135,23 @@ class Reqs:
                 message_string += f' {message['sender']:19} │ {str(date)}\n'
             message_string += ' ' + message['content'] + '\n\n'
 
-            self.emit_text(text, message_string)
-        text.see("end")
+            self.emit_text(self.chat_field, message_string)
+        self.chat_field.see("end")
 
 
     def get_messages(self):
         data = {'conversation': self.status['chat']}
-        return self.send_request('/get_msgs', data)['messages']
+        self.message_list = self.send_request('/get_msgs', data)['messages']
+        print(data)
+        # return self.send_request('/get_msgs', data)['messages']
         
 
-    def send(self, message: str, textbox):
+    def send(self, message: str):
         data = {
             'content': message,
             'conversation': self.status['chat'],
             'sender': self.status['sender'],
-            'sn': self.lastSN + 1
         }
         _ = self.send_request('/send', data)
-        self.print_messages(textbox, self.get_messages())
+        self.get_messages()
+        self.print_messages()
