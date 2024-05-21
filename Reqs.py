@@ -2,6 +2,7 @@ import requests
 from tkinter import messagebox, Text
 import socketio
 import threading
+from win11toast import toast
 
 class Reqs:
 
@@ -35,13 +36,15 @@ class Reqs:
 
     def update(self, data: dict):
         convo = data.get('conversation')
+        content = data.get('content')
+        sender = data.get('sender')
         print(data)
         if convo:
             if convo == self.status['chat']:
                 self.get_messages()
                 self.print_messages()
             else:
-                pass
+                toast(f'{sender}', f'{content}', app_id='New message')
 
 
     def run_sw(self):
