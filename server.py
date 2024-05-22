@@ -1,12 +1,9 @@
-# In dev!
-
 import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import firestore
 from flask import Flask, request, abort, jsonify
-from flask_socketio import SocketIO, join_room, emit
+from flask_socketio import SocketIO
 import bcrypt
-import threading
 
 
 app = Flask(__name__)
@@ -131,7 +128,7 @@ def find_user():
 
 @app.route("/")
 def hello():
-    return "What the hella you doin' here??"
+    return "yeah"
 
 
 @app.route("/is_user", methods=['POST'])
