@@ -108,7 +108,7 @@ def login():
     if bcrypt.checkpw(password, stored_hashed_password):
         return jsonify({'result': True, 'message': 'Login successful'}), 200
     else:
-        return jsonify({'result': False, 'message': 'Invalid username or password'}), 401
+        return jsonify({'result': False, 'message': 'Invalid password'}), 401
 
 
 @app.route("/find_user", methods=['GET'])
@@ -205,8 +205,12 @@ def send():
     try:
         # Add message data to Firestore
         db.collection("messages").add(message_data)
-        members = db.collection('conversations').document(convID).get().to_dict().get('members')
-        
+        members = db.collection('conversations')\
+                    .document(convID)\
+                    .get()\
+                    .to_dict()\
+                    .get('members')
+
         for member in members:
             if member != sender_name:
                 if member in clients:

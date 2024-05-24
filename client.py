@@ -2,7 +2,6 @@ from reqs import Reqs
 from tkinter import *
 from tkinter import ttk, messagebox
 import time
-import threading
 
 
 if __name__ == '__main__':
