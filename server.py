@@ -206,12 +206,12 @@ def send():
         # Add message data to Firestore
         db.collection("messages").add(message_data)
         members = db.collection('conversations').document(convID).get().to_dict().get('members')
+        
         for member in members:
             if member != sender_name:
                 if member in clients:
                     send_to_client(member, data)
-            else:
-                pass
+
         return jsonify({'result': True}), 200
     except Exception as e:
         print(e)

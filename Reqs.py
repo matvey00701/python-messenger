@@ -48,6 +48,7 @@ class Reqs:
 
 
     def run_sw(self):
+        self.sio.disconnect()
         self.sio.connect(f'{self.status['server_url']}?client_id={self.status['sender']}', transports=['websocket']) # , query_string={'client_id': client_id})
         self.sio.wait()
 
