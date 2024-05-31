@@ -49,10 +49,12 @@ class Reqs:
 
     def run_sw(self):
         self.sio.disconnect()
-        self.sio.connect(f'{self.status['server_url']}?client_id={self.status['sender']}', transports=['websocket']) # , query_string={'client_id': client_id})
+        self.sio.connect(
+            f'{self.status['server_url']}?client_id={self.status['sender']}',
+            transports=['websocket'])
         self.sio.wait()
 
-    
+
     def start_sw(self):
         sw_thread = threading.Thread(target=self.run_sw)
         sw_thread.daemon = True
@@ -66,7 +68,9 @@ class Reqs:
         )
         if response.json()['result']:
             return response.json()
-        messagebox.showerror('Error', f'{response.json()['message']}\nCode: {response.status_code}')
+        messagebox.showerror(
+            'Error',
+            f'{response.json()['message']}\nCode: {response.status_code}')
 
     
     def find_user(self, username: str) -> bool:
